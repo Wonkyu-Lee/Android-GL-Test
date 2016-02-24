@@ -1,5 +1,6 @@
 package me.insertcoin.gltest;
 
+import android.graphics.SurfaceTexture;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -7,22 +8,17 @@ import android.os.Message;
 /**
  * Created by blazeq on 16. 2. 19..
  */
-
-
-// TODO: EGLContext를 만들어두고 계속 사용할 수 있는지 보자. 중간에 release/restore가 필요하다면 어떻게 할까?
-    // Application은 아주 오랜동안 종료가 안될 수도 있기 때문에 EGLContext를 갖고 있는 건 무리다. 필요할 때마다 없으면 만들고 있으면 쓰는게 맞다?
-    // Renderer에 세션? 느낌으로 만들어 쓰고 그걸 반환하도록. 궁금한 것은 background에서 gl drawing이 가능할지.
 public class Renderer {
     private RendererHandler mHandler;
     private final Object mStateFence = new Object();
+    private State mState = State.NOT_READY;
+    private EglCore mEglCore;
 
     private enum State {
         NOT_READY,
         RUNNING,
         STOPPING,
     }
-
-    private State mState = State.NOT_READY;
 
     public void start() {
         synchronized (mStateFence) {
@@ -51,6 +47,7 @@ public class Renderer {
 
         synchronized (mStateFence) {
             mHandler = new RendererHandler();
+            initializeGl();
             mState = State.RUNNING;
             mStateFence.notify();
         }
@@ -59,6 +56,7 @@ public class Renderer {
 
         synchronized (mStateFence) {
             mHandler = null;
+            releaseGl();
             mState = State.NOT_READY;
         }
     }
@@ -93,5 +91,22 @@ public class Renderer {
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
         }
+    }
+
+    private void initializeGl() {
+        mEglCore = new EglCore();
+        mEglCore.initialize();
+    }
+
+    private void releaseGl() {
+        mEglCore.release();
+        mEglCore = null;
+    }
+
+
+    public EglWindowSurface createWindowSurface(SurfaceTexture surfaceTexture) {
+        EglWindowSurface surface = new EglWindowSurface(mEglCore);
+        surface.initialize(surfaceTexture);
+        return surface;
     }
 }
