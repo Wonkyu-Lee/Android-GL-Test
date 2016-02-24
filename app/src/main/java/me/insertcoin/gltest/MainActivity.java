@@ -22,6 +22,7 @@ public class MainActivity extends AppCompatActivity {
 
         GlView(int resId) {
             mView = (TextureView)findViewById(resId);
+            mView.setOpaque(false);
 
             mView.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -68,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
                     float g = Color.green(color) / 255.0f;
                     float b = Color.blue(color) / 255.0f;
                     float a = Color.alpha(color) / 255.0f;
-                    GLES20.glClearColor(r, g, b, a);
+                    GLES20.glClearColor(r, g, b, a * 0.5f);
                     GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
                     mEglWindowSurface.swapBuffers();
                 }
