@@ -8,6 +8,8 @@ import android.opengl.EGLDisplay;
 import android.opengl.EGLSurface;
 import android.view.Surface;
 
+import javax.microedition.khronos.egl.EGL11;
+
 /**
  * Created by blazeq on 16. 2. 24..
  */

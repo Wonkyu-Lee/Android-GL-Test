@@ -23,6 +23,12 @@ public class EglWindowSurface {
         mSurface = null;
     }
 
+    @Override
+    protected void finalize() throws Throwable {
+        release();
+        super.finalize();
+    }
+
     public void makeCurrent() {
         mCore.makeCurrent(mSurface);
     }
