@@ -5,20 +5,27 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "GlTest";
     private Renderer mRenderer;
     private GlView[] mGlViews = new GlView[2];
 
     class GlView {
+        private final int mResId;
         private int mColor = Color.GRAY;
         private final TextureView mView;
         private EglWindowSurface mEglWindowSurface;
         private Thread mAnimationThread;
 
+        private Object mLock = new Object();
+        private boolean mReady = false;
+
         GlView(int resId) {
+            mResId = resId;
             mView = (TextureView)findViewById(resId);
             mView.setOpaque(false);
 
@@ -39,9 +46,30 @@ public class MainActivity extends AppCompatActivity {
 
             mView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                 @Override
-                public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                    mEglWindowSurface = mRenderer.createWindowSurface(surface);
-                    requestDraw();
+                public void onSurfaceTextureAvailable(final SurfaceTexture surface, int width, int height) {
+                    Log.d(TAG, String.format("[TextView: %d] onSurfaceTextureAvailable()", mResId));
+                    mRenderer.queueEvent(new Runnable() {
+                        @Override
+                        public void run() {
+                            mEglWindowSurface = mRenderer.createWindowSurface(surface);
+                            drawFrame();
+
+                            synchronized (mLock) {
+                                mReady = true;
+                                mLock.notify();
+                            }
+                        }
+                    });
+
+                    synchronized (mLock) {
+                        while (!mReady) {
+                            try {
+                                mLock.wait();
+                            } catch(InterruptedException e) {
+                                // ignore
+                            }
+                        }
+                    }
                 }
 
                 @Override
@@ -50,8 +78,15 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                    mEglWindowSurface.release();
-                    mEglWindowSurface = null;
+                    Log.d(TAG, String.format("[TextView: %d] onSurfaceTextureDestroyed()", mResId));
+                    mRenderer.queueEvent(new Runnable() {
+                        @Override
+                        public void run() {
+                            mEglWindowSurface.release();
+                            mEglWindowSurface = null;
+                        }
+                    });
+
                     return false;
                 }
 
@@ -65,20 +100,24 @@ public class MainActivity extends AppCompatActivity {
             mRenderer.queueEvent(new Runnable() {
                 @Override
                 public void run() {
-                    draw();
+                    drawFrame();
                 }
             });
         }
 
-        void draw() {
-            if (mEglWindowSurface == null)
+        void drawFrame() {
+            Log.d(TAG, String.format("[TextView: %d] drawFrame() start", mResId));
+            if (mEglWindowSurface == null) {
+                Log.d(TAG, String.format("[TextView: %d] drawFrame() exit", mResId));
                 return;
+            }
 
             mEglWindowSurface.makeCurrent();
             float[] colorf = getColorf(mColor);
             GLES20.glClearColor(colorf[0], colorf[1], colorf[2], colorf[3]);
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
             mEglWindowSurface.swapBuffers();
+            Log.d(TAG, String.format("[TextView: %d] drawFrame() end", mResId));
         }
 
         Thread startAnimation() {
@@ -101,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             };
-            thread.start();;
+            thread.start();
             return thread;
         }
 
@@ -131,5 +170,17 @@ public class MainActivity extends AppCompatActivity {
 
         mGlViews[0] = new GlView(R.id.gl_view1);
         mGlViews[1] = new GlView(R.id.gl_view2);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(TAG, "onResume()");
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d(TAG, "onPause()");
     }
 }

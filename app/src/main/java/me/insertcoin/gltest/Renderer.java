@@ -25,12 +25,12 @@ public class Renderer {
             if (mState != State.NOT_READY)
                 return;
 
-            new Thread(new Runnable() {
+            new Thread() {
                 @Override
                 public void run() {
                     initializeAndRun();
                 }
-            }).start();
+            }.start();
 
             while (mState != State.RUNNING) {
                 try {
