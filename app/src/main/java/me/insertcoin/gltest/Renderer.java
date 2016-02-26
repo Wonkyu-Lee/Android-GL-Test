@@ -47,7 +47,7 @@ public class Renderer {
 
         synchronized (mStateFence) {
             mHandler = new RendererHandler();
-            initializeGl();
+            initializeEgl();
             mState = State.RUNNING;
             mStateFence.notify();
         }
@@ -56,7 +56,7 @@ public class Renderer {
 
         synchronized (mStateFence) {
             mHandler = null;
-            releaseGl();
+            releaseEgl();
             mState = State.NOT_READY;
         }
     }
@@ -93,20 +93,24 @@ public class Renderer {
         }
     }
 
-    private void initializeGl() {
+    private void initializeEgl() {
         mEglCore = new EglCore();
         mEglCore.initialize();
     }
 
-    private void releaseGl() {
+    private void releaseEgl() {
         mEglCore.release();
         mEglCore = null;
     }
 
-
     public EglWindowSurface createWindowSurface(SurfaceTexture surfaceTexture) {
-        EglWindowSurface surface = new EglWindowSurface(mEglCore);
-        surface.initialize(surfaceTexture);
-        return surface;
+        synchronized (mStateFence) {
+            if (mState != State.RUNNING)
+                return null;
+
+            EglWindowSurface surface = new EglWindowSurface(mEglCore);
+            surface.initialize(surfaceTexture);
+            return surface;
+        }
     }
 }
